@@ -1,19 +1,17 @@
 import datetime as dt
 from typing import Optional
 
-date_format = '%d.%m.%Y'
+DATE_FORMAT = '%d.%m.%Y'
 
 
 class Record:
     def __init__(self, amount, comment, date: Optional[str] = None):
         if amount is not int:
             amount = int(amount)
-            self.amount = amount
-        else:
-            self.amount = amount
+        self.amount = amount
 
         if date is not None:
-            self.date = dt.datetime.strptime(date, date_format).date()
+            self.date = dt.datetime.strptime(date, DATE_FORMAT).date()
         else:
             self.date = dt.date.today()
 
@@ -31,20 +29,12 @@ class Calculator:
 
     def get_today_stats(self):
         today = dt.date.today()
-        list_of_amounts = []
-        for record in self.records:
-            if record.date == today:
-                list_of_amounts.append(record.amount)
-        return sum(list_of_amounts)
+        return sum(r.amount for r in self.records if r.date == today)
 
     def get_week_stats(self):
         today = dt.date.today()
-        max_date = today - dt.timedelta(weeks=1)
-        list_of_amounts = []
-        for record in self.records:
-            if max_date < record.date <= today:
-                list_of_amounts.append(record.amount)
-        return sum(list_of_amounts)
+        mx_date = today - dt.timedelta(weeks=1)
+        return sum(r.amount for r in self.records if mx_date < r.date <= today)
 
     def get_remains(self):
         sum = self.get_today_stats()
@@ -52,9 +42,11 @@ class Calculator:
 
 
 class CashCalculator(Calculator):
+    RUB_RATE = 1.0
     USD_RATE = 60.0
     EURO_RATE = 70.0
     currencies = {
+        'rub': [RUB_RATE, 'руб'],
         'usd': [USD_RATE, 'USD'],
         'eur': [EURO_RATE, 'Euro']
     }
@@ -65,15 +57,19 @@ class CashCalculator(Calculator):
             return 'Денег нет, держись'
 
         if currency not in self.currencies.keys():
-            result = f'{abs(remainder)} руб'
+            raise ValueError('Ошибка: выбранная вами валюта не поддерживается')
         else:
-            exchange = abs(remainder / self.currencies[currency][0])
-            result = f'{exchange:.2f} {self.currencies[currency][1]}'
+            if remainder < 0:
+                exchange = abs(remainder / self.currencies[currency][0])
+            else:
+                exchange = remainder / self.currencies[currency][0]
+
+            currency_abbreviation = self.currencies[currency][1]
+            result = f'{exchange:.2f} {currency_abbreviation}'
 
         if remainder > 0:
             return f'На сегодня осталось {result}'
-        else:
-            return f'Денег нет, держись: твой долг - {result}'
+        return f'Денег нет, держись: твой долг - {result}'
 
 
 class CaloriesCalculator(Calculator):
@@ -82,5 +78,4 @@ class CaloriesCalculator(Calculator):
         if remainder > 0:
             return ('Сегодня можно съесть что-нибудь ещё, '
                     f'но с общей калорийностью не более {remainder} кКал')
-        if remainder <= 0:
-            return 'Хватит есть!'
+        return 'Хватит есть!'
